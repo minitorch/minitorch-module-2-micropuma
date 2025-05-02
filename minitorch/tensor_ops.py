@@ -49,7 +49,7 @@ class TensorOps:
 
     cuda = False
 
-
+# 链接计算图逻辑和底层矩阵cuda运算算子
 class TensorBackend:
     def __init__(self, ops: Type[TensorOps]):
         """
@@ -221,6 +221,7 @@ class SimpleOps(TensorOps):
         return ret
 
     @staticmethod
+    # 下一章用cuda实现矩阵乘法操作
     def matrix_multiply(a: "Tensor", b: "Tensor") -> "Tensor":
         raise NotImplementedError("Not implemented in this assignment")
 
@@ -229,7 +230,8 @@ class SimpleOps(TensorOps):
 
 # Implementations.
 
-
+# map操作只支持input_shape <= output_shape
+# 多对一应该在reduce操作中实现
 def tensor_map(fn: Callable[[float], float]) -> Any:
     """
     Low-level implementation of tensor map between
@@ -269,11 +271,33 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+
+        # 两种情况：两个shape一样或是需要broadcast，这里做一下assertion check
+        # try:
+        #     assert(shape_broadcast(in_shape, out_shape) == out_shape)
+        # except AssertionError:
+        #     raise ValueError("输入形状和输出形状无法braodcast")
+        
+        out_index = np.array(out_shape)
+        in_index = np.array(in_shape)
+
+        # 对于输出的每一个元素，找寻到其broadcast操作之前的映射
+        length = len(out)
+        for i in range(length):
+            # 先获取out_index
+            to_index(i, out_shape, out_index)
+            # 获取in_index映射关系
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            # 将in_index转换为物理index
+            physical_index = index_to_position(in_index, in_strides)
+            data = in_storage[physical_index]
+            map_data = fn(data)
+
+            out[index_to_position(out_index, out_strides)] = map_data
 
     return _map
 
-
+# 和map函数类似，只是有两个storage，要broadcast并zip一下
 def tensor_zip(fn: Callable[[float, float], float]) -> Any:
     """
     Low-level implementation of tensor zip between
@@ -319,11 +343,32 @@ def tensor_zip(fn: Callable[[float, float], float]) -> Any:
         b_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        # try:
+        #     assert(shape_broadcast(out_shape, a_shape) == out_shape and shape_broadcast(out_shape, b_shape) == out_shape)
+        # except AssertionError:
+        #     raise ValueError("输入形状和输出形状无法braodcast") 
+        
+        length = len(out)
+        out_index = np.array(out_shape)
+        a_index = np.array(a_shape)
+        b_index = np.array(b_shape)
+
+        for i in range(length):
+            to_index(i, out_shape, out_index)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+
+            a_physical = index_to_position(a_index, a_strides)
+            b_physical = index_to_position(b_index, b_strides)
+
+            a_value = a_storage[a_physical]
+            b_value = b_storage[b_physical]
+
+            out[index_to_position(out_index, out_strides)] = fn(a_value, b_value)
 
     return _zip
 
-
+# quite trickey here
 def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
     """
     Low-level implementation of tensor reduce.
@@ -355,8 +400,23 @@ def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        out_index = np.array(out_shape)
+        length = len(out)
 
+        for i in range(length):
+            to_index(i, out_shape, out_index)
+            o_index = index_to_position(out_index, out_strides)
+
+            # 在指定维度做归约
+            for j in range(a_shape[reduce_dim]):
+                # out_index在reduce_dim上是1
+                # a_index copy一份，并在reduce_dim上改为j
+                a_index = out_index.copy()
+                a_index[reduce_dim] = j
+                # 将a_index变成物理存储位置
+                a_index_phy = index_to_position(a_index, a_strides)
+
+                out[o_index] = fn(out[o_index], a_storage[a_index_phy])
     return _reduce
 
 

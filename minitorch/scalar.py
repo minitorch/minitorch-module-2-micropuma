@@ -6,6 +6,8 @@ from typing import Any, Iterable, Optional, Sequence, Tuple, Type, Union
 import numpy as np
 
 from .autodiff import Context, Variable, backpropagate, central_difference
+
+# 一些目前支持的scalar function
 from .scalar_functions import (
     EQ,
     LT,
@@ -46,7 +48,8 @@ class ScalarHistory:
 
 _var_count = 0
 
-
+# 仿照python/pytorch机制，对于每个scalar封装一个类
+# 只有ScalarFunctoin可以对这个Scalar操作（会自动记录历史信息）
 class Scalar:
     """
     A reimplementation of scalar values for autodifferentiation
@@ -85,32 +88,40 @@ class Scalar:
     def __mul__(self, b: ScalarLike) -> Scalar:
         return Mul.apply(self, b)
 
+    # self/b
     def __truediv__(self, b: ScalarLike) -> Scalar:
         return Mul.apply(self, Inv.apply(b))
 
+    # b/self
     def __rtruediv__(self, b: ScalarLike) -> Scalar:
         return Mul.apply(b, Inv.apply(self))
 
     def __add__(self, b: ScalarLike) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return Add.apply(self, b) 
 
     def __bool__(self) -> bool:
         return bool(self.data)
 
     def __lt__(self, b: ScalarLike) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return LT.apply(self, b)
 
     def __gt__(self, b: ScalarLike) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return LT.apply(b, self)
 
     def __eq__(self, b: ScalarLike) -> Scalar:  # type: ignore[override]
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return EQ.apply(self, b)
 
     def __sub__(self, b: ScalarLike) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return Add.apply(self, Neg.apply(b))
 
     def __neg__(self) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return Neg.apply(self)
 
     def __radd__(self, b: ScalarLike) -> Scalar:
         return self + b
@@ -119,16 +130,20 @@ class Scalar:
         return self * b
 
     def log(self) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return Log.apply(self) 
 
     def exp(self) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return Exp.apply(self)
 
     def sigmoid(self) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return Sigmoid.apply(self)
 
     def relu(self) -> Scalar:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.2.
+        return ReLU.apply(self)
 
     # Variable elements for backprop
 
@@ -141,12 +156,14 @@ class Scalar:
             x: value to be accumulated
         """
         assert self.is_leaf(), "Only leaf variables can have derivatives."
+        # 累积每个leaf node的偏导合
         if self.derivative is None:
             self.derivative = 0.0
         self.derivative += x
 
     def is_leaf(self) -> bool:
         "True if this variable created by the user (no `last_fn`)"
+        # ex. z = x + y, so x + y is last_fn that help create z
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
@@ -154,16 +171,25 @@ class Scalar:
 
     @property
     def parents(self) -> Iterable[Variable]:
+        # 当前value如何构成的，history输入即为parents，可能是多个 
         assert self.history is not None
         return self.history.inputs
 
+    # 定义链式传导规则
+    # x = 1
+    # y = 2
+    # z = x +y
+    # 则应该返回[(x,1), (y,1)]这样的tupe列表，其中1是backward反向传播得到的偏导
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
         h = self.history
         assert h is not None
         assert h.last_fn is not None
         assert h.ctx is not None
 
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.3.
+        derivatives = h.last_fn.backward(h.ctx, d_output)
+        return zip(h.inputs, derivatives) 
+         
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """
@@ -173,6 +199,8 @@ class Scalar:
             d_output (number, opt): starting derivative to backpropagate through the model
                                    (typically left out, and assumed to be 1.0).
         """
+        # d_output如果是最节点，则为1.
+        # 反向传播计算input 
         if d_output is None:
             d_output = 1.0
         backpropagate(self, d_output)

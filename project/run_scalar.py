@@ -8,9 +8,16 @@ import minitorch
 
 
 class Network(minitorch.Module):
+    # 三层线性层
+    # 中间穿插两层relu
+    # 最后一层sigmoid完成分类结果
     def __init__(self, hidden_layers):
         super().__init__()
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.5.
+        # 输入是2，输出是1
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
 
     def forward(self, x):
         middle = [h.relu() for h in self.layer1.forward(x)]
@@ -18,6 +25,7 @@ class Network(minitorch.Module):
         return self.layer3.forward(end)[0].sigmoid()
 
 
+# Linear是线性层
 class Linear(minitorch.Module):
     def __init__(self, in_size, out_size):
         super().__init__()
@@ -25,12 +33,14 @@ class Linear(minitorch.Module):
         self.bias = []
         for i in range(in_size):
             self.weights.append([])
+            # 针对每个输出，针对输入做weight权重随机化
             for j in range(out_size):
                 self.weights[i].append(
                     self.add_parameter(
                         f"weight_{i}_{j}", minitorch.Scalar(2 * (random.random() - 0.5))
                     )
                 )
+        # 对于输出添加bias
         for j in range(out_size):
             self.bias.append(
                 self.add_parameter(
@@ -38,8 +48,19 @@ class Linear(minitorch.Module):
                 )
             )
 
+    # 使用weight和bias，将input输入变成output输出
     def forward(self, inputs):
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.5.
+        result = []
+
+        for i in range(len(self.bias)):
+            tmp = self.bias[i].value
+            for j in range(len(inputs)):
+                tmp = tmp + inputs[j] * self.weights[j][i].value
+
+            result.append(tmp)
+
+        return result
 
 
 def default_log_fn(epoch, total_loss, correct, losses):
