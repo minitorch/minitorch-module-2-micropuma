@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
     TensorLike = Union[float, int, "Tensor"]
 
-
+# 和scalar的定义一样
 @dataclass
 class History:
     """
@@ -60,6 +60,8 @@ class History:
 _tensor_count = 0
 
 
+# tensor的逻辑实现
+# 在tensor_data中是tensor的底层数据存储
 class Tensor:
     """
     Tensor is a generalization of Scalar in that it is a Variable that
@@ -69,6 +71,8 @@ class Tensor:
     backend: TensorBackend
     history: Optional[History]
     grad: Optional[Tensor]
+
+    # 底层tensor存储
     _tensor: TensorData
     unique_id: int
     name: str
@@ -96,12 +100,14 @@ class Tensor:
 
         self.f = backend
 
+    # 根据是否有history历史信息，来判断是否需要求导
     def requires_grad_(self, x: bool) -> None:
         self.history = History()
 
     def requires_grad(self) -> bool:
         return self.history is not None
 
+    # 将tensor的封装unwrap，直接暴露底层的存储
     def to_numpy(self) -> npt.NDArray[np.float64]:
         """
         Returns:
@@ -110,6 +116,7 @@ class Tensor:
         return self.contiguous()._tensor._storage.reshape(self.shape)
 
     # Properties
+    # 均需要访问底层的存储类型：tensorData，里面存储诸如storage，shape等信息
     @property
     def shape(self) -> UserShape:
         """
@@ -134,16 +141,23 @@ class Tensor:
         """
         return self._tensor.dims
 
+    # 类型统一化工具，将所有参与运算的operand变成对应设备上的tensor
     def _ensure_tensor(self, b: TensorLike) -> Tensor:
         "Turns a python number into a tensor with the same backend."
+        # 针对单一元素，构建tensor object
         if isinstance(b, (int, float)):
             c = Tensor.make([b], (1,), backend=self.backend)
+        # 单纯设定设备后端即可
+        # todo: 不知道为什么这里会报错，所以打一个补丁
+        elif isinstance(b, np.generic):  # 处理 NumPy 标量类型
+            return Tensor.make([b.item()], (1,), backend=self.backend)
         else:
             b._type_(self.backend)
             c = b
         return c
 
     # Functions
+    # 类似scalar的设计实现，只是需要ensure_tensor这一个步骤
     def __add__(self, b: TensorLike) -> Tensor:
         return Add.apply(self, self._ensure_tensor(b))
 
@@ -206,6 +220,7 @@ class Tensor:
         assert self.size == 1
         return self[0]
 
+    # 一些tensor特色函数实现
     def sum(self, dim: Optional[int] = None) -> Tensor:
         "Compute the sum over dimension `dim`"
         if dim is None:
@@ -224,6 +239,7 @@ class Tensor:
         "Permute tensor dimensions to *order"
         return Permute.apply(self, tensor(list(order)))
 
+    # tensor view，提供视图
     def view(self, *shape: int) -> Tensor:
         "Change the shape of the tensor to a new shape with the same size"
         return View.apply(self, tensor(list(shape)))
@@ -260,6 +276,7 @@ class Tensor:
         backend: Optional[TensorBackend] = None,
     ) -> Tensor:
         "Create a new tensor from data"
+        # 理解一个tensor是如何构建的
         return Tensor(TensorData(storage, shape, strides), backend=backend)
 
     def expand(self, other: Tensor) -> Tensor:

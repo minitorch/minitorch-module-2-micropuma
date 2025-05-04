@@ -44,8 +44,13 @@ def index_to_position(index: Index, strides: Strides) -> int:
     """
 
     # TODO: Implement for Task 2.1.
-    raise NotImplementedError("Need to implement for Task 2.1")
+    index_strides = zip(index, strides)
+    result = 0
 
+    for index_, stride_ in index_strides:
+        result = result + index_ * stride_
+
+    return result
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     """
@@ -61,8 +66,13 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
 
     """
     # TODO: Implement for Task 2.1.
-    raise NotImplementedError("Need to implement for Task 2.1")
-
+    if any(dim == 0 for dim in shape):
+        raise ValueError("All dimensions in shape must be non-zero.")
+    
+    for i, dim in enumerate(reversed(shape)):
+        pos = len(shape) - 1 - i  # 从后向前填充
+        out_index[pos] = ordinal % dim
+        ordinal = ordinal // dim
 
 def broadcast_index(
     big_index: Index, big_shape: Shape, shape: Shape, out_index: OutIndex
@@ -84,7 +94,12 @@ def broadcast_index(
         None
     """
     # TODO: Implement for Task 2.2.
-    raise NotImplementedError("Need to implement for Task 2.2")
+    large_len = len(big_shape)
+    small_len = len(shape)
+
+    for i in range(small_len):
+        offset = i + large_len - small_len
+        out_index[i] = big_index[offset] if shape[i] != 1 else 0
 
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
@@ -102,9 +117,24 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
         IndexingError : if cannot broadcast
     """
     # TODO: Implement for Task 2.2.
-    raise NotImplementedError("Need to implement for Task 2.2")
+    length = max(len(shape1), len(shape2))
 
+    # 用1补齐shape length小的一方
+    if len(shape1) < length:
+        shape1 = [1 for i in range(length - len(shape1))] + list(shape1) 
+    elif len(shape2) < length:
+        shape2 = [1 for i in range(length - len(shape2))] + list(shape2)
 
+    result = []
+    for i in range(length):
+        if (shape1[i] != shape2[i] and shape1[i] != 1 and shape2[i] != 1):
+            raise IndexingError("Violation of Broadcast rules")
+        result.append(max(shape1[i], shape2[i]))
+    
+    return tuple(result)
+
+# shape是[3,4,5]
+# 则stride是[20,5,1]
 def strides_from_shape(shape: UserShape) -> UserStrides:
     layout = [1]
     offset = 1
@@ -152,6 +182,7 @@ class TensorData:
         if not numba.cuda.is_cuda_array(self._storage):
             self._storage = numba.cuda.to_device(self._storage)
 
+    # 检查索引是否连续：[3,2,1] stride就是连续的
     def is_contiguous(self) -> bool:
         """
         Check that the layout is contiguous, i.e. outer dimensions have bigger strides than inner dimensions.
@@ -223,7 +254,11 @@ class TensorData:
         ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
 
         # TODO: Implement for Task 2.1.
-        raise NotImplementedError("Need to implement for Task 2.1")
+        return TensorData(
+            self._storage,
+            tuple([self._shape[i] for i in order]),
+            tuple([self._strides[i] for i in order])
+        )
 
     def to_string(self) -> str:
         s = ""
