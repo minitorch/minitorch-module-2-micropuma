@@ -125,8 +125,7 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
         for key, dv in inputs:
             # 如果是叶子节点，则直接在叶子上做累积即可
             if key.is_leaf(): 
-                key.accumulate_derivative(dv)            
-                print("result is:", key.derivative)
+                key.accumulate_derivative(dv)             
                 continue
             
             if key.unique_id in node_to_grad.keys():

@@ -21,8 +21,8 @@
             "type": "debugpy",
             "request": "launch",
             /// 由于我的 pytest 在虚拟环境中，所以这里指定了虚拟环境中的解释器和 pytest
-            "python": "/mnt/home/douliyang/mlsys/minitorch/.venv/bin/python", 
-            "program": "/mnt/home/douliyang/mlsys/minitorch/.venv/bin/pytest",
+            "python": "/mnt/home/douliyang/mlsys/minitorch/task1/bin/python", 
+            "program": "/mnt/home/douliyang/mlsys/minitorch/task1/bin/pytest",
             "args": [
                 "--capture=no",
                 "-m", // 指定 pytest 的 marker

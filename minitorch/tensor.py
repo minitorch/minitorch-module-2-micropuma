@@ -148,6 +148,9 @@ class Tensor:
         if isinstance(b, (int, float)):
             c = Tensor.make([b], (1,), backend=self.backend)
         # 单纯设定设备后端即可
+        # todo: 不知道为什么这里会报错，所以打一个补丁
+        elif isinstance(b, np.generic):  # 处理 NumPy 标量类型
+            return Tensor.make([b.item()], (1,), backend=self.backend)
         else:
             b._type_(self.backend)
             c = b
